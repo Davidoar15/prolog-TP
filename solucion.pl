@@ -105,18 +105,17 @@ tiene(Persona, Figurita):-
 tiene(Persona, Figurita):-
     regalo(Persona, _, Figurita).
 
-% 2. Relacionar a una persona con una figurita si la TIENE REPETIDA
-% obtuvo(Persona, Figurita, Origen)/3 !!
-obtuvo(Persona, Figurita, dePaquete(NroPaquete)):-
-    paquete(Persona, NroPaquete, Figurita).
-obtuvo(Persona, Figurita, deRegalo(QuienDa)):-
-    regalo(Persona, QuienDa, Figurita).
+todasLasFiguritas(Persona, FigurasOrdenadas):-
+    findall(Figuritas, tiene(Persona,Figuritas), TodasLasFiguritas),
+    msort(TodasLasFiguritas, FigurasOrdenadas).
 
+% 2. Relacionar a una persona con una figurita si la TIENE REPETIDA
 % repetida(Persona, Figurita)/2 !!
 repetida(Persona, Figurita):-
+    persona(Persona),
     figurita(Figurita),
-    findall(Origen, obtuvo(Persona, Figurita, Origen), Origenes),
-    length(Origenes, Cantidad),
+    findall(Figura, (tiene(Persona, Figura), Figura = Figurita), CopiasDeFigura),
+    length(CopiasDeFigura, Cantidad),
     Cantidad > 1.
 
 % 3. Saber si una figurita es Rara
@@ -139,9 +138,11 @@ menosDeLaMitadConsiguio(Figurita):-
     length(Personas, CantidadPersonasConFigurita),
     CantidadPersonasConFigurita*2 < TotalDePersonas.
 
+
+
 consiguieronFiguritaAlMenosUnaVez(Figurita, Personas):-
     findall(Persona, tiene(Persona, Figurita), Lista),
-    sort(Lista, Personas).
+    list_to_set(Lista, Personas).
 
 nadieTieneRepetida(Figurita):-
     consiguieronFiguritaAlMenosUnaVez(Figurita, Personas),
@@ -150,17 +151,17 @@ nadieTieneRepetida(Figurita):-
 % IMAGENES Y PERSONAJES
 
 % 5. Definir predicado para saber si una Figurita es VALIOSA
-esValiosa(Figura):-
-    esRara(Figura).
-esValiosa(Figura):-
-    esAtractiva(Figura).
+esValiosa(Figurita):-
+    esRara(Figurita).
+esValiosa(Figurita):-
+    esAtractiva(Figurita).
 
-esAtractiva(Figura):-
-    atractivo(Figura, Atractivo),
+esAtractiva(Figurita):-
+    atractivo(Figurita, Atractivo),
     Atractivo > 7.
 
-atractivo(Figura, Atractivo):-
-    imagen(Figura, Imagen),
+atractivo(Figurita, Atractivo):-
+    imagen(Figurita, Imagen),
     nivelAtractivo(Imagen, Atractivo).
 
 nivelAtractivo(basica(Personajes), Atractivo):-
@@ -171,60 +172,85 @@ nivelAtractivo(brillante(Personaje), Atractivo):-
     personaje(Personaje, Popularidad),
     Atractivo is Popularidad * 5.
 
-nivelAtractivo(rompecabezas(Piezas), NivelAtractivo):-
+nivelAtractivo(rompecabezas(Piezas), Atractivo):-
     length(Piezas, Longitud),
-    (Longitud < 3 ->  NivelAtractivo = 2; NivelAtractivo = 0).
+    Longitud >= 3,
+    Atractivo is 0.
+nivelAtractivo(rompecabezas(Piezas), Atractivo):-
+    length(Piezas, Longitud),
+    Longitud < 3,
+    Atractivo is 2.
+%(Longitud < 3 ->  Atractivo is 2; Atractivo is 0).
 
 % 6. Relacionar Persona con la Imagen MAS ATRACTIVA de las figuritas que tiene
 
 laMasAtractivaDe(Persona, MejorImagen):-
-    tiene(Persona, _),
-    tiene(Persona, MejorFigura),
-    forall((tiene(Persona, OtraFigura), OtraFigura \= MejorFigura), figura1EsMasAtractiva(MejorFigura, OtraFigura)),
-    imagen(MejorFigura, MejorImagen).
+    tiene(Persona, MejorFigurita),
+    forall((tiene(Persona, OtraFigurita), OtraFigurita \= MejorFigurita), figuritaEsMasAtractiva(MejorFigurita, OtraFigurita)),
+    imagen(MejorFigurita, MejorImagen).
 
-figura1EsMasAtractiva(Figura1, Figura2):-
-    imagen(Figura1, Imagen1),
-    imagen(Figura2, Imagen2),
+figuritaEsMasAtractiva(Figurita1, Figurita2):-
+    imagen(Figurita1, Imagen1),
+    imagen(Figurita2, Imagen2),
     nivelAtractivo(Imagen1, Atractivo1),
     nivelAtractivo(Imagen2, Atractivo2),
     Atractivo1 > Atractivo2.
 
 % 7. Saber que tan interesante resulta para una Persona un Paquete o Canje con otra persona
-% Obtencion -> (functores) paquete(FiguritasRecibidas) || canje(FiguritasRecibidas, FiguritasDadas, PersonaParaCanje)
+% Obtencion -> (functores) paquete(FiguritasRecibidas) || canje(Persona, FiguritasRecibidas, FiguritasDadas, PersonaParaCanje)
 
-% interes(Persona, Opcion, Puntos)/3 !! POR AHORA, Mejorar si se requiere
-interes(Persona, paquete(FiguritasRecibidas), Puntos):-
-    calculoInteres(Persona, FiguritasRecibidas, Puntos).
-interes(Persona, canje(FiguritasRecibidas, _, _), Puntos):-
-    calculoInteres(Persona, FiguritasRecibidas, Puntos).
+% interes(Persona, Opcion, NivelInteres)/3 !! POR AHORA, Mejorar si se requiere
+interes(Persona, paquete(FiguritasRecibidas), NivelInteres):-
+    calculoInteres(Persona, FiguritasRecibidas, NivelInteres).
+interes(Persona, canje(Persona, FiguritasRecibidas, _, _), NivelInteres):-
+    calculoInteres(Persona, FiguritasRecibidas, NivelInteres).
     
-calculoInteres(Persona, Recibidas, Puntos):-
-    findall(Figurita, (member(Figurita, Recibidas), not(tiene(Persona, Figurita))), FiguritasNuevas),
-    findall(Atractivo, (member(Figurita, FiguritasNuevas), atractivo(Figurita, Atractivo)), ListaAtractivos),
+calculoInteres(Persona, FiguritasTotales, NivelInteres):-
+    figuritasFaltantes(Persona, FiguritasTotales, FiguritasDeInteres),
+    totalDeAtractivos(FiguritasDeInteres, AtractivoTotal),
+    calcularBonus(FiguritasDeInteres, Bonus),
+    NivelInteres is AtractivoTotal + Bonus.
+    
+figuritasFaltantes(Persona, FiguritasTotales, FiguritasNuevas):-
+    findall(Figurita, (member(Figurita, FiguritasTotales), not(tiene(Persona, Figurita))), FiguritasNuevas).
+
+totalDeAtractivos(Figuritas, AtractivoTotal):-
+    Figuritas \= [],
+    findall(Atractivo, (member(Figurita, Figuritas), atractivo(Figurita, Atractivo)), ListaAtractivos),
     sumlist(ListaAtractivos, SumaAtractivos),
-    (member(Figurita, FiguritasNuevas), esRara(Figurita) ->  Bonus = 20; Bonus = 0),
-    Puntos is SumaAtractivos + Bonus.
+    AtractivoTotal is SumaAtractivos.
+totalDeAtractivos([], 0).
+
+calcularBonus(FiguritasNuevas, Bonus):-
+    member(Figurita, FiguritasNuevas),
+    esRara(Figurita),
+    Bonus is 20.
+calcularBonus(FiguritasNuevas, Bonus):-
+    forall(member(Figurita, FiguritasNuevas), not(esRara(Figurita))),
+    Bonus is 0.
     
 % 8. Analisis elemental sobre Canjes Posibles y Paquetes Nuevos
 
 validarObtencion(paquete(Figuritas)):-
     forall(member(Figurita, Figuritas), figurita(Figurita)).
 validarObtencion(canje(Persona, FiguritasRecibidas, FiguritasDadas, PersonaParaCanje)):-
-	forall(member(Figurita, FiguritasRecibidas), tiene(PersonaParaCanje, Figurita)),
-    forall(member(Figurita, FiguritasDadas), tiene(Persona, Figurita)).
+	validarCanjeFiguritas(Persona, FiguritasDadas),
+    validarCanjeFiguritas(PersonaParaCanje, FiguritasRecibidas).
+
+validarCanjeFiguritas(Persona, FiguritasCanje):-
+    todasLasFiguritas(Persona, FiguritasDePersonaOrdenadas),
+    msort(FiguritasCanje, FiguritasCanjeOrdenadas),
+    ord_subset(FiguritasCanjeOrdenadas, FiguritasDePersonaOrdenadas).
 
 % CAMBIO, CAMBIO...
 
 % 9. Verificar si una Persona HACE NEGOCIO con un Canje
 
-haceNegocio(Persona, canje(FiguritasRecibidas, FiguritasDadas, PersonaParaCanje)):-
-    persona(Persona),
+haceNegocio(Persona, canje(Persona, FiguritasRecibidas, FiguritasDadas, PersonaParaCanje)):-
     persona(PersonaParaCanje),
     member(FiguritaRecibida, FiguritasRecibidas),
     esValiosa(FiguritaRecibida),
     forall(member(FiguritaDada, FiguritasDadas), not(esValiosa(FiguritaDada))).
-
 
 % 10. Saber si una Persona NECESITA CON URGENCIA una Figurita !! Esto quedo NO INVERSIBLE porque se las agarra con una de las versiones si preguntas necesitaUrgentemente(X,Y)
 
@@ -241,9 +267,10 @@ necesitaUrgentemente(Persona, Figurita):-
 
 tieneCasiTodas(Persona):-
     persona(Persona),
-    findall(Figurita, distinct(tiene(Persona, Figurita)), FiguritasDistintas),
+    todasLasFiguritas(Persona, TodasLasFiguritas),
+    list_to_set(TodasLasFiguritas, FiguritasDistintas),
     length(FiguritasDistintas, CantidadFiguritas),
-    CantidadFiguritas = 8. % El total de figuritas es 9
+    CantidadFiguritas is 8. % El total de figuritas es 9
 
 % PROFESIONALES DEL COLECCIONISMO
 
@@ -251,13 +278,10 @@ tieneCasiTodas(Persona):-
 
 esAmenaza(Persona, Canjes):-
     member(Canje, Canjes),
-    excelenteCanje(Persona, Canje).
-
-excelenteCanje(Persona, Canje):-
     haceNegocio(Persona, Canje),
-    saleGanando(Persona, Canje).
+    forall(member(Canje, Canjes), saleGanando(Persona, Canje)).
 
-saleGanando(Persona, canje(FiguritasRecibidas, FiguritasDadas, _)):-
+saleGanando(Persona, canje(Persona, FiguritasRecibidas, FiguritasDadas, _)):-
     calculoInteres(Persona, FiguritasRecibidas, InteresSobreRecibidas),
     calculoInteres(Persona, FiguritasDadas, InteresSobreDadas),
     InteresSobreRecibidas > InteresSobreDadas.
@@ -271,42 +295,38 @@ posiblesCanjes(Persona, OtraPersona, Canjes):-
     findall(Canje, posibleCanje(Persona, OtraPersona, Canje), Canjes).
 
 % Un solo canje válido entre Persona y Otra Persona según estilos
-posibleCanje(Persona, OtraPersona, canje(FiguritasRecibidas, FiguritasDadas, OtraPersona)):-
-    universoRecibibles(Persona, OtraPersona, ListaRecibibles),
-    ListaRecibibles \= [],
-    universoRepetidas(Persona, ListaDadas), 
-    ListaDadas \= [],
-    subconjunto(ListaRecibibles, FiguritasRecibidas),
-    FiguritasRecibidas \= [],
-    subconjunto(ListaDadas, FiguritasDadas),
-    FiguritasDadas \= [],
+posibleCanje(Persona, OtraPersona, canje(Persona, FiguritasRecibidas, FiguritasDadas, OtraPersona)):-
+    posiblesFigurasDeCanje(Persona, FiguritasDadas),
+    hayAlgunaRepetida(Persona, FiguritasDadas),
+    posiblesFigurasDeCanje(OtraPersona, FiguritasRecibidas),
     validarObtencion(canje(Persona, FiguritasRecibidas, FiguritasDadas, OtraPersona)),
     tipoEstilo(FiguritasRecibidas, FiguritasDadas, OtraPersona).
 
-tipoEstilo(Recibidas, Dadas, OtraPersona):-
-    ( 
-    	esClasico(OtraPersona, Dadas); 
-    	esDescartador(OtraPersona, Recibidas); 
-    	esCazafortunas(Dadas); 
-    	esUrgido(OtraPersona, Recibidas)
-    ), !. % Para que verifique el canje con la 1ra que cumpla
+posiblesFigurasDeCanje(Persona, FigurasParaCanje):-
+    todasLasFiguritas(Persona, ListaTotalDeCanje),
+    subconjuntosPosibles(ListaTotalDeCanje, FigurasParaCanje),
+    FigurasParaCanje \= [].
+
+hayAlgunaRepetida(Persona, Figuritas):-
+    member(UnaRepetida, Figuritas),
+    repetida(Persona, UnaRepetida).
+% Para que verifique el canje con la 1ra que cumpla
 
 % Generador de todos los subconjuntos de una lista
-subconjunto([], []).
-subconjunto([X|Xs], [X|Ys]):- 
-    subconjunto(Xs, Ys).
-subconjunto([_|Xs], Ys):- 
-    subconjunto(Xs, Ys).
+subconjuntosPosibles([], []).
+subconjuntosPosibles([Cabeza|Cola], [Cabeza|ColaResultante]):- 
+    subconjuntosPosibles(Cola, ColaResultante).
+subconjuntosPosibles([_|Cola], ColaResultante):- 
+    subconjuntosPosibles(Cola, ColaResultante).
 
-% Lista figuritas que Otra Persona tiene y Persona no tiene
-universoRecibibles(Persona, OtraPersona, Recibidas):-
-    findall(Figurita, (tiene(OtraPersona, Figurita), not(tiene(Persona, Figurita))), ListaFiguritas),
-    sort(ListaFiguritas, Recibidas).
-
-% Lista de figuritas repetidas que Persona puede dar
-universoRepetidas(Persona, Dadas):-
-    findall(Figurita, repetida(Persona, Figurita), ListaFiguritas),
-    sort(ListaFiguritas, Dadas).
+tipoEstilo(_, Dadas, OtraPersona):-
+   	esClasico(OtraPersona, Dadas).
+tipoEstilo(Recibidas, _, OtraPersona):-
+  	esDescartador(OtraPersona, Recibidas). 
+tipoEstilo(_, Dadas, _):-
+   	esCazafortunas(Dadas).
+tipoEstilo(Recibidas, _, OtraPersona):-
+    esUrgido(OtraPersona, Recibidas).
 
 % Estilo clásico: Otra Persona no tiene ninguna de las que recibiría
 esClasico(OtraPersona, Dadas):- 
